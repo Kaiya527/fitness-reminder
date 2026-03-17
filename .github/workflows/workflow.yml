@@ -1,0 +1,39 @@
+name: 健身打卡提醒
+
+on:
+  # 定时触发：每天北京时间晚上 8:30
+  schedule:
+    - cron: '30 12 * * *'  # UTC 12:30 = 北京时间 20:30
+
+  # 允许手动触发测试
+  workflow_dispatch:
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: 安装依赖
+        run: |
+          pip install requests
+
+      - name: 发送健身打卡提醒
+        env:
+          # 钉钉机器人配置
+          WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
+          SECRET: ${{ secrets.DINGTALK_SECRET }}
+        run: |
+          python3 .github/scripts/send_reminder.py
+
+      - name: 查看执行结果
+        if: always()
+        run: |
+          echo "执行完成"
