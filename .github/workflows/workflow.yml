@@ -28,8 +28,10 @@ jobs:
       - name: 发送健身打卡提醒
         env:
           # 钉钉机器人配置
-          WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
-          SECRET: ${{ secrets.DINGTALK_SECRET }}
+          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+
+          env:
         run: |
           python3 .github/scripts/send_reminder.py
 
