@@ -1,41 +1,143 @@
-name: 健身打卡提醒
+name: 健康管理提醒
 
 on:
-  # 定时触发：每天北京时间晚上 8:30
+  # 定时触发（使用UTC时间，北京时间=UTC+8）
   schedule:
-    - cron: '23 13 * * *'  # UTC 13:13 = 北京时间 21:13
+    # 体重提醒 - 北京时间8:00 (UTC 0:00)
+    - cron: '0 0 * * *'
+    # 体重提醒 - 北京时间22:00 (UTC 14:00)
+    - cron: '0 14 * * *'
+    # 早餐提醒 - 北京时间7:30 (UTC 23:30)
+    - cron: '30 23 * * *'
+    # 午餐提醒 - 北京时间12:00 (UTC 4:00)
+    - cron: '0 4 * * *'
+    # 晚餐提醒 - 北京时间18:30 (UTC 10:30)
+    - cron: '30 10 * * *'
+    # 三围测量提醒 - 每周一北京时间9:00 (UTC 1:00)
+    - cron: '0 1 * * 1'
 
   # 允许手动触发测试
   workflow_dispatch:
+    inputs:
+      reminder_type:
+        description: '提醒类型'
+        required: true
+        type: choice
+        options:
+          - weight
+          - breakfast
+          - lunch
+          - dinner
+          - measurements
 
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
-
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
 
-      - name: 设置 Python 环境
+      - name: 设置Python环境
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
       - name: 安装依赖
         run: |
-          pip install requests
+          pip install -q requests
 
-      - name: 发送健身打卡提醒
-        env:
-          # 钉钉机器人配置
-          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
-          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
-
-          env:
+      - name: 发送体重提醒（早8点）
+        if: github.event.schedule == '0 0 * * *'
         run: |
-          python3 .github/scripts/send_reminder.py
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "体重记录提醒" \
+            --text "**今日体重记录** ⏰\n\n时间到了，请记录今天的体重。\n\n> *每一步坚持，都是与更好的自己相遇*"
 
-      - name: 查看执行结果
-        if: always()
+      - name: 发送体重提醒（晚10点）
+        if: github.event.schedule == '0 14 * * *'
         run: |
-          echo "执行完成"
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "体重记录提醒" \
+            --text "**今日体重记录** ⏰\n\n时间到了，请记录今天的体重。\n\n> *每一步坚持，都是与更好的自己相遇*"
+
+      - name: 发送早餐提醒
+        if: github.event.schedule == '30 23 * * *'
+        run: |
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "早餐记录提醒" \
+            --text "**早餐时间** 🍽️\n\n请拍照上传今天的早餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+
+      - name: 发送午餐提醒
+        if: github.event.schedule == '0 4 * * *'
+        run: |
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "午餐记录提醒" \
+            --text "**午餐时间** 🍽️\n\n请拍照上传今天的午餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+
+      - name: 发送晚餐提醒
+        if: github.event.schedule == '30 10 * * *'
+        run: |
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "晚餐记录提醒" \
+            --text "**晚餐时间** 🍽️\n\n请拍照上传今天的晚餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+
+      - name: 发送三围测量提醒
+        if: github.event.schedule == '0 1 * * 1'
+        run: |
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "三围测量提醒" \
+            --text "**每周三围测量** 📏\n\n新的一周开始了，请记录胸围、腰围、臀围的数据。\n\n> *数据的每一次记录，都是对身体的诚实对话*"
+
+      # 手动触发测试
+      - name: 手动发送提醒
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          REMINDER_TYPE="${{ github.event.inputs.reminder_type }}"
+          
+          case $REMINDER_TYPE in
+            weight)
+              TITLE="体重记录提醒"
+              TEXT="**今日体重记录** ⏰\n\n时间到了，请记录今天的体重。\n\n> *每一步坚持，都是与更好的自己相遇*"
+              ;;
+            breakfast)
+              TITLE="早餐记录提醒"
+              TEXT="**早餐时间** 🍽️\n\n请拍照上传今天的早餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+              ;;
+            lunch)
+              TITLE="午餐记录提醒"
+              TEXT="**午餐时间** 🍽️\n\n请拍照上传今天的午餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+              ;;
+            dinner)
+              TITLE="晚餐记录提醒"
+              TEXT="**晚餐时间** 🍽️\n\n请拍照上传今天的晚餐，我会帮你分析营养并给出建议。\n\n> *用心感受每一餐，让食物成为身体的滋养*"
+              ;;
+            measurements)
+              TITLE="三围测量提醒"
+              TEXT="**每周三围测量** 📏\n\n新的一周开始了，请记录胸围、腰围、臀围的数据。\n\n> *数据的每一次记录，都是对身体的诚实对话*"
+              ;;
+          esac
+          
+          python scripts/dingtalk_notifier.py \
+            --webhook "${{ secrets.DINGTALK_WEBHOOK }}" \
+            --secret "${{ secrets.DINGTALK_SECRET }}" \
+            --type markdown \
+            --title "$TITLE" \
+            --text "$TEXT"
